@@ -1,0 +1,103 @@
+{
+  "1": {
+    "inputs": {
+      "mode": "normal",
+      "foreground_opacity": 1,
+      "foreground_scale": 1.5,
+      "position_x": 50,
+      "position_y": 55,
+      "foreground": [
+        "10",
+        0
+      ],
+      "background": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "AILab_ImageCombiner",
+    "_meta": {
+      "title": "Image Combiner (RMBG) 🖼️"
+    }
+  },
+  "8": {
+    "inputs": {
+      "image": "The Ultimate Guide to Van Life in Japan_ What Every Traveler Needs to Know.jpeg-Photoroom (1).png",
+      "mask_channel": "alpha",
+      "scale_by": 1,
+      "resize_mode": "shortest_side",
+      "size": 1800,
+      "upload": "image"
+    },
+    "class_type": "AILab_LoadImage",
+    "_meta": {
+      "title": "background image input"
+    }
+  },
+  "9": {
+    "inputs": {
+      "image": "Demo.png",
+      "mask_channel": "alpha",
+      "scale_by": 1,
+      "resize_mode": "longest_side",
+      "size": 0,
+      "upload": "image"
+    },
+    "class_type": "AILab_LoadImage",
+    "_meta": {
+      "title": "foreground image input"
+    }
+  },
+  "10": {
+    "inputs": {
+      "model": "RMBG-2.0",
+      "sensitivity": 1,
+      "process_res": 1024,
+      "mask_blur": 0,
+      "mask_offset": 0,
+      "invert_output": false,
+      "refine_foreground": false,
+      "background": "Alpha",
+      "image": [
+        "9",
+        0
+      ]
+    },
+    "class_type": "RMBG",
+    "_meta": {
+      "title": "Remove Background (RMBG)"
+    }
+  },
+  "12": {
+    "inputs": {
+      "width": 1800,
+      "height": 1200,
+      "upscale_method": "nearest-exact",
+      "keep_proportion": "resize",
+      "pad_color": "0, 0, 0",
+      "crop_position": "center",
+      "divisible_by": 2,
+      "image": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "ImageResizeKJv2",
+    "_meta": {
+      "title": "Resize Image v2"
+    }
+  },
+  "13": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "12",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  }
+}

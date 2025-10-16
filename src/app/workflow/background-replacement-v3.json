@@ -1,0 +1,190 @@
+{
+  "3": {
+    "inputs": {
+      "image": "image (10).PNG",
+      "upload": "image"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "10": {
+    "inputs": {
+      "ckpt_name": "lazymixRealAmateur_v40Inpainting.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "11": {
+    "inputs": {
+      "text": "A flat foreground of short green grass stretches across the base of the image. In the background, Mount Rinjani rises dramatically, its slopes covered in dense tropical vegetation and grassy ridges. Light mist clings to the upper mountain, adding depth. Rolling hills and scattered trees frame the mountain, creating a peaceful, vibrant highland scene.",
+      "clip": [
+        "10",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt) - Positive"
+    }
+  },
+  "12": {
+    "inputs": {
+      "text": "Human, person, tent,car Part,car, ugly, distorted, low quality, blurry, pixelated, watermark, text, human, animal, worst quality, deformed, extra limbs, unnatural anatomy, human body, feet, cropped, cut-off limbs, bad proportions, bad anatomy, poorly drawn face, poorly drawn hands, poorly drawn feet, extra fingers, mutated hands, extra toes, disfigured, dehydrated, bad skin, uneven pupils, cross-eyed, out of frame, missing limbs, floating limbs, disconnected limbs, long neck, malformed limbs",
+      "clip": [
+        "10",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt) - Negative"
+    }
+  },
+  "14": {
+    "inputs": {
+      "seed": 904535305493190,
+      "steps": 35,
+      "cfg": 7.5,
+      "sampler_name": "dpmpp_3m_sde_gpu",
+      "scheduler": "exponential",
+      "denoise": 1,
+      "model": [
+        "10",
+        0
+      ],
+      "positive": [
+        "19",
+        0
+      ],
+      "negative": [
+        "19",
+        1
+      ],
+      "latent_image": [
+        "19",
+        2
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "15": {
+    "inputs": {
+      "samples": [
+        "14",
+        0
+      ],
+      "vae": [
+        "10",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "19": {
+    "inputs": {
+      "noise_mask": true,
+      "positive": [
+        "11",
+        0
+      ],
+      "negative": [
+        "12",
+        0
+      ],
+      "vae": [
+        "10",
+        2
+      ],
+      "pixels": [
+        "25",
+        1
+      ],
+      "mask": [
+        "25",
+        2
+      ]
+    },
+    "class_type": "InpaintModelConditioning",
+    "_meta": {
+      "title": "InpaintModelConditioning"
+    }
+  },
+  "25": {
+    "inputs": {
+      "downscale_algorithm": "bilinear",
+      "upscale_algorithm": "nearest",
+      "preresize": true,
+      "preresize_mode": "ensure maximum resolution",
+      "preresize_min_width": 1024,
+      "preresize_min_height": 1024,
+      "preresize_max_width": 1800,
+      "preresize_max_height": 1200,
+      "mask_fill_holes": false,
+      "mask_expand_pixels": 0,
+      "mask_invert": false,
+      "mask_blend_pixels": 8,
+      "mask_hipass_filter": 0.10000000000000002,
+      "extend_for_outpainting": false,
+      "extend_up_factor": 1.0000000000000002,
+      "extend_down_factor": 1.0000000000000002,
+      "extend_left_factor": 1.0000000000000002,
+      "extend_right_factor": 1.0000000000000002,
+      "context_from_mask_extend_factor": 1,
+      "output_resize_to_target_size": false,
+      "output_target_width": 512,
+      "output_target_height": 512,
+      "output_padding": "32",
+      "image": [
+        "3",
+        0
+      ],
+      "mask": [
+        "3",
+        1
+      ]
+    },
+    "class_type": "InpaintCropImproved",
+    "_meta": {
+      "title": "✂️ Inpaint Crop (Improved)"
+    }
+  },
+  "26": {
+    "inputs": {
+      "stitcher": [
+        "25",
+        0
+      ],
+      "inpainted_image": [
+        "15",
+        0
+      ]
+    },
+    "class_type": "InpaintStitchImproved",
+    "_meta": {
+      "title": "✂️ Inpaint Stitch (Improved)"
+    }
+  },
+  "29": {
+    "inputs": {
+      "filename_prefix": "results",
+      "images": [
+        "26",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  }
+}

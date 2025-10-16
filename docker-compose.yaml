@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      - API_HOST=${API_HOST:-0.0.0.0}
+      - API_WORKERS=${API_WORKERS:-4}
+      - SERVER_ADDRESS=${SERVER_ADDRESS:-host.docker.internal:8188}
+      - API_BASE_URL=${API_BASE_URL:-http://localhost:8000}
+      - MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI:-http://localhost:5000}
+      - PYTHONPATH=/app
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./results:/app/results
+    restart: unless-stopped
+    env_file:
+      - .env
+
+volumes:
+  pgdata:

@@ -1,0 +1,43 @@
+*.db
+assets/external/
+.states
+.web
+__pycache__/
+*.py[cod]
+*.png
+*.jpg
+*.jpeg
+*.webp
+
+# Environment variables
+.env
+.env.*
+
+# Python cache
+__pycache__
+*.py[cod]
+*.so
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+eggs/
+*.egg
+
+# Virtual Environment
+mlruns/
+env/
+venv/
+ENV/
+.env/
+.venv/
+.Python
+pip-log.txt
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store

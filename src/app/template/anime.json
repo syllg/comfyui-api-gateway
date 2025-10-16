@@ -1,0 +1,18 @@
+{
+    "Model A": {
+        "image_filename": "ARIES.jpg",
+        "gender": "man"
+    },
+    "Model B": {
+        "image_filename": "GREY.jpg",
+        "gender": "man"
+    },
+    "Model C": {
+        "image_filename": "AGHNY.jpg",
+        "gender": "woman"
+    },
+    "Model D": {
+        "image_filename": "RED.jpg",
+        "gender": "woman"
+    }
+}

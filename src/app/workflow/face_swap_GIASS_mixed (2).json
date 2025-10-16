@@ -1,0 +1,664 @@
+{
+  "3": {
+    "inputs": {
+      "seed": [
+        "89",
+        3
+      ],
+      "steps": 4,
+      "cfg": 2,
+      "sampler_name": "dpmpp_sde",
+      "scheduler": "karras",
+      "denoise": 0.65,
+      "model": [
+        "92",
+        0
+      ],
+      "positive": [
+        "22",
+        0
+      ],
+      "negative": [
+        "23",
+        0
+      ],
+      "latent_image": [
+        "103",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "dreamshaperXL_v21TurboDPMSDE.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "8": {
+    "inputs": {
+      "samples": [
+        "3",
+        0
+      ],
+      "vae": [
+        "4",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "22": {
+    "inputs": {
+      "text": "",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "23": {
+    "inputs": {
+      "text": "blurry, malformed, low quality, worst quality, artifacts, noise, text, watermark, glitch, deformed, ugly, horror, ill",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "46": {
+    "inputs": {
+      "weight": 0.8,
+      "start_at": 0,
+      "end_at": 1,
+      "instantid": [
+        "47",
+        0
+      ],
+      "insightface": [
+        "86",
+        0
+      ],
+      "control_net": [
+        "48",
+        0
+      ],
+      "image": [
+        "146",
+        0
+      ],
+      "model": [
+        "4",
+        0
+      ],
+      "positive": [
+        "22",
+        0
+      ],
+      "negative": [
+        "23",
+        0
+      ],
+      "image_kps": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "ApplyInstantID",
+    "_meta": {
+      "title": "ZenID FaceSwap"
+    }
+  },
+  "47": {
+    "inputs": {
+      "instantid_file": "ip-adapter.bin"
+    },
+    "class_type": "InstantIDModelLoader",
+    "_meta": {
+      "title": "Load InstantID Model"
+    }
+  },
+  "48": {
+    "inputs": {
+      "control_net_name": "instantid/diffusion_pytorch_model.safetensors"
+    },
+    "class_type": "ControlNetLoader",
+    "_meta": {
+      "title": "Load ControlNet Model"
+    }
+  },
+  "49": {
+    "inputs": {
+      "seed": [
+        "89",
+        3
+      ],
+      "steps": 4,
+      "cfg": 2,
+      "sampler_name": "dpmpp_sde",
+      "scheduler": "karras",
+      "denoise": 0.65,
+      "model": [
+        "46",
+        0
+      ],
+      "positive": [
+        "46",
+        1
+      ],
+      "negative": [
+        "46",
+        2
+      ],
+      "latent_image": [
+        "103",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "50": {
+    "inputs": {
+      "samples": [
+        "49",
+        0
+      ],
+      "vae": [
+        "4",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "85": {
+    "inputs": {},
+    "class_type": "PulidFluxEvaClipLoader",
+    "_meta": {
+      "title": "Load Eva Clip (PuLID Flux)"
+    }
+  },
+  "86": {
+    "inputs": {
+      "provider": "CUDA"
+    },
+    "class_type": "PulidFluxInsightFaceLoader",
+    "_meta": {
+      "title": "Load InsightFace (PuLID Flux)"
+    }
+  },
+  "89": {
+    "inputs": {
+      "seed": 431742996874449
+    },
+    "class_type": "Seed",
+    "_meta": {
+      "title": "Seed"
+    }
+  },
+  "90": {
+    "inputs": {
+      "image": "target_77a6991b-4d27-4d7f-80f9-45c67d7bcbdb (1).jpg"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Input Target"
+    }
+  },
+  "92": {
+    "inputs": {
+      "method": "fidelity",
+      "weight": 1,
+      "start_at": 0,
+      "end_at": 1,
+      "model": [
+        "4",
+        0
+      ],
+      "pulid": [
+        "93",
+        0
+      ],
+      "eva_clip": [
+        "85",
+        0
+      ],
+      "face_analysis": [
+        "86",
+        0
+      ],
+      "image": [
+        "146",
+        0
+      ]
+    },
+    "class_type": "ApplyPulid",
+    "_meta": {
+      "title": "Apply PuLID"
+    }
+  },
+  "93": {
+    "inputs": {
+      "pulid_file": "ip-adapter_pulid_sdxl_fp16.safetensors"
+    },
+    "class_type": "PulidModelLoader",
+    "_meta": {
+      "title": "Load PuLID Model"
+    }
+  },
+  "94": {
+    "inputs": {
+      "threshold": 0.85,
+      "dilation": 30,
+      "crop_factor": 24.8,
+      "drop_size": 30,
+      "labels": "all",
+      "bbox_detector": [
+        "97",
+        0
+      ],
+      "image": [
+        "90",
+        0
+      ]
+    },
+    "class_type": "BboxDetectorSEGS",
+    "_meta": {
+      "title": "BBOX Detector (SEGS)"
+    }
+  },
+  "95": {
+    "inputs": {
+      "detection_hint": "center-1",
+      "dilation": 52,
+      "threshold": 0.9,
+      "bbox_expansion": 52,
+      "mask_hint_threshold": 0.7000000000000001,
+      "mask_hint_use_negative": "False",
+      "sam_model": [
+        "96",
+        0
+      ],
+      "segs": [
+        "94",
+        0
+      ],
+      "image": [
+        "90",
+        0
+      ]
+    },
+    "class_type": "SAMDetectorCombined",
+    "_meta": {
+      "title": "SAMDetector (combined)"
+    }
+  },
+  "96": {
+    "inputs": {
+      "model_name": "sam_vit_b_01ec64.pth",
+      "device_mode": "AUTO"
+    },
+    "class_type": "SAMLoader",
+    "_meta": {
+      "title": "SAMLoader (Impact)"
+    }
+  },
+  "97": {
+    "inputs": {
+      "model_name": "bbox/face_yolov8m.pt"
+    },
+    "class_type": "UltralyticsDetectorProvider",
+    "_meta": {
+      "title": "UltralyticsDetectorProvider"
+    }
+  },
+  "102": {
+    "inputs": {
+      "pixels": [
+        "90",
+        0
+      ],
+      "vae": [
+        "4",
+        2
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode"
+    }
+  },
+  "103": {
+    "inputs": {
+      "samples": [
+        "102",
+        0
+      ],
+      "mask": [
+        "95",
+        0
+      ]
+    },
+    "class_type": "SetLatentNoiseMask",
+    "_meta": {
+      "title": "Set Latent Noise Mask"
+    }
+  },
+  "117": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "PuLID"
+    }
+  },
+  "118": {
+    "inputs": {
+      "filename_prefix": "ComfyUI",
+      "images": [
+        "50",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "InstantID"
+    }
+  },
+  "138": {
+    "inputs": {
+      "model": "wd-v1-4-vit-tagger",
+      "threshold": 0.35000000000000003,
+      "character_threshold": 0.85,
+      "replace_underscore": false,
+      "trailing_comma": false,
+      "exclude_tags": "",
+      "tags": "solo, 1girl, solo, looking_at_viewer, brown_hair, simple_background, long_sleeves, closed_mouth, upper_body, hood, lips, own_hands_together, hood_up, watch, realistic",
+      "image": [
+        "155",
+        0
+      ]
+    },
+    "class_type": "WD14Tagger|pysssss",
+    "_meta": {
+      "title": "WD14 Tagger 🐍"
+    }
+  },
+  "139": {
+    "inputs": {
+      "strength": 1,
+      "conditioning": [
+        "143",
+        0
+      ],
+      "control_net": [
+        "149",
+        0
+      ],
+      "image": [
+        "140",
+        0
+      ]
+    },
+    "class_type": "ControlNetApply",
+    "_meta": {
+      "title": "Apply ControlNet (OLD)"
+    }
+  },
+  "140": {
+    "inputs": {
+      "coarse": "disable",
+      "resolution": 704,
+      "image": [
+        "155",
+        0
+      ]
+    },
+    "class_type": "LineArtPreprocessor",
+    "_meta": {
+      "title": "Realistic Lineart"
+    }
+  },
+  "141": {
+    "inputs": {
+      "control_net_name": "control_v11p_sd15_openpose.safetensors"
+    },
+    "class_type": "ControlNetLoader",
+    "_meta": {
+      "title": "Load ControlNet Model"
+    }
+  },
+  "142": {
+    "inputs": {
+      "strength": 1,
+      "conditioning": [
+        "139",
+        0
+      ],
+      "control_net": [
+        "141",
+        0
+      ],
+      "image": [
+        "155",
+        0
+      ]
+    },
+    "class_type": "ControlNetApply",
+    "_meta": {
+      "title": "Apply ControlNet (OLD)"
+    }
+  },
+  "143": {
+    "inputs": {
+      "text": [
+        "138",
+        0
+      ],
+      "clip": [
+        "144",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "144": {
+    "inputs": {
+      "lora_name": "何似在人间.safetensors",
+      "strength_model": 0.2,
+      "strength_clip": 0.1,
+      "model": [
+        "145",
+        0
+      ],
+      "clip": [
+        "145",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "Load LoRA"
+    }
+  },
+  "145": {
+    "inputs": {
+      "lora_name": "3DMM_V12.safetensors",
+      "strength_model": 0.5,
+      "strength_clip": 0.4,
+      "model": [
+        "152",
+        0
+      ],
+      "clip": [
+        "152",
+        1
+      ]
+    },
+    "class_type": "LoraLoader",
+    "_meta": {
+      "title": "Load LoRA"
+    }
+  },
+  "146": {
+    "inputs": {
+      "samples": [
+        "154",
+        0
+      ],
+      "vae": [
+        "152",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "147": {
+    "inputs": {
+      "images": [
+        "146",
+        0
+      ]
+    },
+    "class_type": "PreviewImage",
+    "_meta": {
+      "title": "Preview Image"
+    }
+  },
+  "148": {
+    "inputs": {
+      "postive_prompt": "preserve original colors, same color palette as input image, detailed, anime style, expressive",
+      "base_negative": "nude, bad quality, ugly, distorted, low quality, blurry",
+      "enhancenegative": 0,
+      "insanitylevel": 0,
+      "base_model": "SD1.5",
+      "seed": 885647063416939
+    },
+    "class_type": "AutoNegativePrompt",
+    "_meta": {
+      "title": "Auto Negative Prompt"
+    }
+  },
+  "149": {
+    "inputs": {
+      "control_net_name": "control_v11p_sd15_lineart_fp16.safetensors"
+    },
+    "class_type": "ControlNetLoader",
+    "_meta": {
+      "title": "Load ControlNet Model"
+    }
+  },
+  "150": {
+    "inputs": {
+      "text": [
+        "148",
+        0
+      ],
+      "clip": [
+        "152",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "151": {
+    "inputs": {
+      "pixels": [
+        "155",
+        0
+      ],
+      "vae": [
+        "152",
+        2
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode"
+    }
+  },
+  "152": {
+    "inputs": {
+      "ckpt_name": "animeCelestialMagic_v30.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "154": {
+    "inputs": {
+      "seed": 376670383794696,
+      "steps": 20,
+      "cfg": 6,
+      "sampler_name": "dpmpp_2m_cfg_pp",
+      "scheduler": "karras",
+      "denoise": 0.45000000000000007,
+      "model": [
+        "144",
+        0
+      ],
+      "positive": [
+        "142",
+        0
+      ],
+      "negative": [
+        "150",
+        0
+      ],
+      "latent_image": [
+        "151",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "155": {
+    "inputs": {
+      "image": "WhatsApp Image 2025-06-24 at 14.40.14_dc595402.jpg"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  }
+}
