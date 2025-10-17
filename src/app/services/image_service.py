@@ -768,13 +768,22 @@ class ImageService:
             if not saved_paths:
                 raise HTTPException(status_code=500, detail="No result image was generated")
 
-            # Prefer node '5' if available, else first
+            # Convert paths to URLs
             images_map = {node: [self._convert_result_path_to_url(p) for p in paths] for node, paths in saved_paths.items() if paths}
             first_url = None
-            if '5' in images_map and images_map['5']:
-                first_url = images_map['5'][0]
-            elif images_map:
+            
+            # Try preferred nodes first, then fallback to any available
+            preferred_nodes = ['5', '6', '7', '8', '9', '10']
+            for node_id in preferred_nodes:
+                if node_id in images_map and images_map[node_id]:
+                    first_url = images_map[node_id][0]
+                    print(f"[DEBUG] Using output from preferred node {node_id}: {first_url}")
+                    break
+            
+            # If no preferred node found, use any available
+            if not first_url and images_map:
                 first_url = next(iter(images_map.values()))[0]
+                print(f"[DEBUG] Using output from fallback node: {first_url}")
 
             return {"status": "success", "image": first_url}
         except HTTPException:
@@ -828,12 +837,22 @@ class ImageService:
             if not saved_paths:
                 raise HTTPException(status_code=500, detail="No result image was generated")
 
+            # Convert paths to URLs
             images_map = {node: [self._convert_result_path_to_url(p) for p in paths] for node, paths in saved_paths.items() if paths}
             first_url = None
-            if '68' in images_map and images_map['68']:
-                first_url = images_map['68'][0]
-            elif images_map:
+            
+            # Try preferred nodes first, then fallback to any available
+            preferred_nodes = ['68', '69', '70', '71', '72', '73']
+            for node_id in preferred_nodes:
+                if node_id in images_map and images_map[node_id]:
+                    first_url = images_map[node_id][0]
+                    print(f"[DEBUG] Using output from preferred node {node_id}: {first_url}")
+                    break
+            
+            # If no preferred node found, use any available
+            if not first_url and images_map:
                 first_url = next(iter(images_map.values()))[0]
+                print(f"[DEBUG] Using output from fallback node: {first_url}")
 
             return {"status": "success", "image": first_url}
         except HTTPException:
