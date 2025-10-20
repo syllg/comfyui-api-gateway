@@ -169,6 +169,51 @@ def style_anime(main_image, denoise=0.45):
     except Exception as e:
         return None, f"Error: {str(e)}"
 
+
+def replace_background_mask(image, selected_prompt_key, n_prompt="", random_seed=True):
+    """Replace background using server-side mask (uploads/temp_mask.*)."""
+    if image is None:
+        return None, "Please upload an image first"
+
+    # Resolve positive prompt text from key
+    p_prompt = get_prompt_value(selected_prompt_key)
+    if not p_prompt:
+        return None, "Please select a valid prompt"
+
+    try:
+        # Convert image to bytes (PNG)
+        img_byte_arr = io.BytesIO()
+        image.save(img_byte_arr, format='PNG')
+        img_byte_arr.seek(0)
+
+        files = {
+            'file': ('image.png', img_byte_arr, 'image/png')
+        }
+        data = {
+            'p_prompt': p_prompt,
+            'n_prompt': n_prompt or "",
+            'random_seed': str(bool(random_seed))
+        }
+
+        resp = requests.post(f"{API_BASE_URL}/replace-background-mask/", files=files, data=data)
+        resp.raise_for_status()
+
+        result_url = resp.json().get('image')
+        if not result_url:
+            return None, "No image returned by API"
+
+        # Build absolute URL if needed
+        if isinstance(result_url, str) and result_url.startswith("/results/"):
+            fetch_url = f"{API_BASE_URL}{result_url}"
+        else:
+            fetch_url = result_url
+
+        result_image_resp = requests.get(fetch_url)
+        result_image_resp.raise_for_status()
+        return Image.open(io.BytesIO(result_image_resp.content)), "Background replaced with mask successfully!"
+    except Exception as e:
+        return None, f"Error: {str(e)}"
+
 def face_swap(target_image, source_image, positive_prompt=None, target_filename=None, denoise1=0.65, denoise2=0.65):
     """Face swap function"""
     if target_image is None or source_image is None:
@@ -489,5 +534,36 @@ with gr.Blocks(title="Image Processing App", theme=gr.themes.Soft()) as app:
             outputs=[asfs_output, asfs_message]
         )
 
+    with gr.Tab("Background Replacement with Masking"):
+        with gr.Row():
+            with gr.Column():
+                brm_image = gr.Image(type="pil", label="Upload Image")
+                with gr.Row():
+                    prompt_options = get_prompt_options()
+                    brm_p_prompt_dropdown = gr.Dropdown(
+                        choices=prompt_options,
+                        label="Background Prompt",
+                        value=prompt_options[0] if prompt_options else None
+                    )
+                    brm_refresh_btn = gr.Button("🔄 Refresh", size="sm")
+                    brm_n_prompt = gr.Textbox(label="Negative Prompt", placeholder="Elements to avoid...")
+                brm_random_seed = gr.Checkbox(label="Use Random Seed")
+                brm_btn = gr.Button("Replace Background (Masked)", variant="primary")
+            with gr.Column():
+                brm_output_image = gr.Image(type="pil", label="Result")
+                brm_output_message = gr.Textbox(label="Status", interactive=False)
+
+        brm_refresh_btn.click(
+            fn=refresh_prompts,
+            inputs=[],
+            outputs=[brm_p_prompt_dropdown]
+        )
+
+        brm_btn.click(
+            fn=replace_background_mask,
+            inputs=[brm_image, brm_p_prompt_dropdown, brm_n_prompt, brm_random_seed],
+            outputs=[brm_output_image, brm_output_message]
+        )
+                
 if __name__ == "__main__":
     app.launch()

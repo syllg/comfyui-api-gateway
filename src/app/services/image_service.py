@@ -15,6 +15,7 @@ from src.app.core.image_processing import process_image
 from src.app.api.websockets_api import background_replacement, anime_style, background_replacement_rembg, face_swap
 from src.app.api.websockets_api import face_swap_single 
 from src.app.api.websockets_api import multi_face_swap
+from src.app.api.websockets_api import background_replacement_masking
 from src.app.utils.image_processing import validate_image_file
 from src.app.utils.file_handling import save_upload_file, save_result_image, get_file_url, UPLOAD_DIR, RESULT_DIR
 from src.app.utils.image_processing import compress_image_for_processing
@@ -773,7 +774,7 @@ class ImageService:
             first_url = None
             
             # Try preferred nodes first, then fallback to any available
-            preferred_nodes = ['5', '6', '7', '8', '9', '10']
+            preferred_nodes = ['5']
             for node_id in preferred_nodes:
                 if node_id in images_map and images_map[node_id]:
                     first_url = images_map[node_id][0]
@@ -842,7 +843,7 @@ class ImageService:
             first_url = None
             
             # Try preferred nodes first, then fallback to any available
-            preferred_nodes = ['68', '69', '70', '71', '72', '73']
+            preferred_nodes = ['68']
             for node_id in preferred_nodes:
                 if node_id in images_map and images_map[node_id]:
                     first_url = images_map[node_id][0]
@@ -863,6 +864,77 @@ class ImageService:
             self._cleanup_file(target_file_path)
             self._cleanup_file(source_file_path)
 
+    async def replace_background_mask(
+        self,
+        file: UploadFile,
+        p_prompt: Optional[str] = None,
+        n_prompt: Optional[str] = None,
+        random_seed: bool = False
+    ) -> Dict[str, str]:
+        """Replace background of an image using mask from src/app/mask folder."""
+        upload_filename = ""
+        try:
+            await self.validate_image(file)
+            logger.info("Image validated: %s", file.filename)
+            
+            file_extension = os.path.splitext(file.filename)[1].lower()
+            upload_filename = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{file_extension}")
+            
+            
+            with open(upload_filename, "wb") as buffer:
+                buffer.write(await file.read())
+            logger.info("File saved to: %s", upload_filename)
+            
+            # Use background_replacement_masking which looks for mask in src/app/mask folder
+            saved_paths = background_replacement_masking(
+                image_path=upload_filename,
+                image_mask="",  # Will be determined by filename in the function
+                p_prompt=p_prompt,
+                n_prompt=n_prompt,
+                random_seed=random_seed
+            )
+            logger.info("Background replacement with mask completed for: %s", upload_filename)
+            
+            if not saved_paths:
+                raise HTTPException(status_code=500, detail="No result image was generated")
+
+            # Convert paths to URLs and rename files with original filename as base
+            urls = []
+            first_url = None
+            for node_id, paths in saved_paths.items():
+                for idx, path in enumerate(paths):
+                    if os.path.exists(path):
+                        # Create a new filename based on the original
+                        new_filename = f"bg_replaced_mask_{os.path.splitext(file.filename)[0]}_{idx}.jpg"
+                        new_path = os.path.join(RESULT_DIR, new_filename)
+                        
+                        # If the new path already exists, add a unique identifier
+                        if os.path.exists(new_path):
+                            base, ext = os.path.splitext(new_filename)
+                            new_filename = f"{base}_{str(uuid.uuid4())[:8]}{ext}"
+                            new_path = os.path.join(RESULT_DIR, new_filename)
+                        
+                        # Move and rename the file
+                        os.rename(path, new_path)
+                        url = f"/results/{new_filename}"
+                        urls.append(url)
+                        if first_url is None:
+                            first_url = url
+
+            if not urls:
+                raise HTTPException(status_code=500, detail="Failed to process result images")
+
+            return {"status": "success", "image": first_url}
+            
+        except HTTPException as http_exc:
+            logger.error("HTTPException during background replacement with mask: %s", http_exc)
+            raise
+        except Exception as e:
+            logger.exception("An unexpected error occurred during background replacement with mask for file: %s", file.filename)
+            raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+        finally:
+            self._cleanup_file(upload_filename)
+
     async def _validate_and_save_files(
         self,
         file: UploadFile    ) -> Tuple[str, str]:
@@ -882,7 +954,6 @@ class ImageService:
             f.write(await file.read())
 
         return file_path
-
 # built-in from Python 3.9+
 
     def _handle_result_file(self, original_filename: str, add_timestamp: bool = False) -> str:

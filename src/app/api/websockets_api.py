@@ -11,7 +11,7 @@ import urllib.request
 import random
 from PIL import Image
 from dotenv import load_dotenv
-from src.app.settings.setting import BACKGROUND_REPLACEMENT_WORKFLOW, ANIME_STYLE_WORKFLOW, FACE_SWAP_WORKFLOW, BACKGROUND_REPLACEMENT_REMBG_WORKFLOW, ANIME_STYLE_FACE_SWAP_MERGE_WORKFLOW, MULTI_FACE_SWAP_WORKFLOW, FACE_SWAP_SINGLE_WORKFLOW
+from src.app.settings.setting import BACKGROUND_REPLACEMENT_WORKFLOW, ANIME_STYLE_WORKFLOW, FACE_SWAP_WORKFLOW, BACKGROUND_REPLACEMENT_REMBG_WORKFLOW, ANIME_STYLE_FACE_SWAP_MERGE_WORKFLOW, MULTI_FACE_SWAP_WORKFLOW, FACE_SWAP_SINGLE_WORKFLOW, BACKGROUND_REPLACEMENT_MASK_WORKFLOW
 from src.app.core.remove_background import get_model
 from src.app.core.image_processing import process_image
 from src.app.core.template import workflow_cache
@@ -238,11 +238,7 @@ def background_replacement(image_path: str, p_prompt: str = None, n_prompt: str 
         saved_paths = save_images(images)
         # print(f"[DEBUG] Saved paths: {saved_paths}")
         
-        # Clean up temporary mask file
-        try:
-            os.remove(mask_path)
-        except Exception as e:
-            print(f"[DEBUG] Warning: Could not remove temporary mask file: {e}")
+        # Note: mask_path is not a temporary file, so we don't remove it
         
         # Validate the generated images
         for node_id in ['29']:  # Background replacement uses node 29
@@ -534,7 +530,7 @@ def face_swap_single(
         
         # Try to find output from expected nodes, fallback to any available node
         validated_nodes = []
-        for node_id in ['5', '6', '7', '8', '9', '10']:  # Try multiple possible output nodes
+        for node_id in ['5']:  # Try multiple possible output nodes
             if node_id in saved_paths and saved_paths[node_id]:
                 for path in saved_paths[node_id]:
                     try:
@@ -615,7 +611,7 @@ def multi_face_swap(
         
         # Try to find output from expected nodes, fallback to any available node
         validated_nodes = []
-        for node_id in ['68', '69', '70', '71', '72', '73']:  # Try multiple possible output nodes
+        for node_id in ['68']:  # Try multiple possible output nodes
             if node_id in saved_paths and saved_paths[node_id]:
                 for path in saved_paths[node_id]:
                     try:
@@ -648,3 +644,80 @@ def multi_face_swap(
         return saved_paths
     except Exception as e:
         raise Exception(f"Error in multi faceswap: {e}")
+
+def background_replacement_masking(image_path: str, image_mask:str, p_prompt: str = None, n_prompt: str = None, random_seed: bool = False):
+    """
+    Function to replace the background of an image with a new one based on a prompt.
+    
+    Args:
+        image_path (str): Path to the image file to replace the background of.
+        p_prompt (str): Prompt to generate a new background image. If None, a random prompt will be generated.
+        n_prompt (str): Number of prompts to generate. If None, only one prompt will be generated.
+        random_seed (bool): If True, the random seed will be set to 0, so the same background will be generated every time the function is called.
+    """
+    try:
+        if not os.path.exists(BACKGROUND_REPLACEMENT_MASK_WORKFLOW):
+            raise Exception(f"Workflow file not found: {BACKGROUND_REPLACEMENT_MASK_WORKFLOW}")
+            
+        # Use mask from uploads directory (generated previously by the system)
+        # Default expected path: uploads/temp_mask.jpg
+        mask_path = os.path.join("./uploads", "temp_mask.png")
+        
+        # Check if mask file exists
+        if not os.path.exists(mask_path):
+            raise Exception(f"Mask file not found: {mask_path}")
+        
+        # Upload both the original image and mask (from uploads)
+        uploaded_filename = upload_image(image_path)
+        uploaded_mask = upload_image(mask_path)
+        print(f"[DEBUG] Uploaded image as: {uploaded_filename}")
+        print(f"[DEBUG] Uploaded mask as: {uploaded_mask}")
+        
+        with open(BACKGROUND_REPLACEMENT_MASK_WORKFLOW, "r", encoding="utf-8") as f:
+            workflow_background_replacement_mask = f.read()
+        workflow = json.loads(workflow_background_replacement_mask)
+        
+        # Set both image and mask inputs
+        workflow["30"]["inputs"]["image"] = uploaded_filename
+        workflow["30"]["inputs"]["upload"] = "image"
+        workflow["3"]["inputs"]["image"] = uploaded_mask
+        workflow["3"]["inputs"]["upload"]="image"
+        print(f"[DEBUG] Set workflow inputs - image: {uploaded_filename}, mask: {uploaded_mask}")
+        
+        if p_prompt is not None and p_prompt != "":
+            workflow["11"]["inputs"]["text"] = p_prompt
+        if n_prompt is not None and n_prompt != "":
+            workflow["12"]["inputs"]["text"] = n_prompt
+        
+        if random_seed:
+            workflow["14"]["inputs"]["seed"] = random.randint(0, 777777777777)
+        
+        print("[DEBUG] Executing workflow")
+        images = get_images_websocket(workflow)
+        print(f"[DEBUG] Got images response: {bool(images)}")
+        if images:
+            print(f"[DEBUG] Images keys: {list(images.keys())}")
+        if not images:
+            raise Exception("No images were generated by the workflow")
+        
+        print("[DEBUG] Saving images")
+        saved_paths = save_images(images)
+        print(f"[DEBUG] Saved paths: {saved_paths}")
+        
+        # Validate the generated images
+        for node_id in ['29']:  # Background replacement uses node 29
+            if node_id in saved_paths:
+                for path in saved_paths[node_id]:
+                    try:
+                        with Image.open(path) as img:
+                            img.verify()
+                            # print(f"[DEBUG] Validated image: {path}")
+                    except Exception as e:
+                        raise Exception(f"Generated image for node {node_id} is invalid: {str(e)}")
+            else:
+                raise Exception(f"No output found from node {node_id}")
+        
+        return saved_paths
+    except Exception as e:
+        print(f"Error in background_replacement: {str(e)}")
+        raise

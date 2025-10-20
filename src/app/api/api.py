@@ -358,6 +358,42 @@ async def multi_face_swap_api(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 
+@app.post("/replace-background-mask/", response_model=BackgroundReplacementResponse)
+@track_inference("replace_background_mask")
+async def replace_background(
+    file: UploadFile = File(..., description="The image file to process"),
+    p_prompt: Optional[str] = Form(None, description="Positive prompt for image generation"),
+    n_prompt: Optional[str] = Form(None, description="Negative prompt to avoid certain elements"),
+    random_seed: Optional[bool] = Form(False, description="Whether to use random seed for generation"),
+    image_service: ImageService = Depends(get_image_service)
+):
+    """
+    Replace the background of an uploaded image using AI with mask from src/app/mask folder.
+    
+    This endpoint processes the image and returns:
+    - The processed image with new background
+    - Generation parameters used
+    
+    Performance metrics are tracked for:
+    - Response time
+    - Request count
+    - Error rates
+    """
+    try:
+        return await image_service.replace_background_mask(
+            file=file,
+            p_prompt=p_prompt,
+            n_prompt=n_prompt,
+            random_seed=random_seed
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error("Background replacement failed", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        ) from e
 
 @app.get("/results/{filename}")
 async def get_result_image(filename: str):
