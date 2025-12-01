@@ -2,7 +2,7 @@ import logging
 import sys
 from pathlib import Path
 from typing import Literal
-from app.settings.setting import DEBUG
+from src.app.settings.setting import DEBUG
 
 LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 

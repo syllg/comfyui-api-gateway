@@ -22,7 +22,7 @@ from contextlib import asynccontextmanager
 from fastapi.staticfiles import StaticFiles
 from enum import Enum
 
-from src.app.schemas.schema import BackgroundRemovalRequest, BackgroundRemovalResponse, BackgroundReplacementRequest, BackgroundReplacementResponse, AnimeStyleRequest, AnimeStyleResponse, FaceSwapResponse, ListPromptRequest, ListPromptResponse, DeletePromptRequest, AnimeTemplateRequest, ListTemplateResponse, DeleteTemplateRequest, AnimeTemplateResponse, AnimeStyleFaceSwapResponse, StatusEnum, MultiFaceSwapResponse, FaceSwapSingleResponse
+from src.app.schemas.schema import BackgroundRemovalRequest, BackgroundRemovalResponse, BackgroundReplacementRequest, BackgroundReplacementResponse, AnimeStyleRequest, AnimeStyleResponse, FaceSwapResponse, ListPromptRequest, ListPromptResponse, DeletePromptRequest, AnimeTemplateRequest, ListTemplateResponse, DeleteTemplateRequest, AnimeTemplateResponse, AnimeStyleFaceSwapResponse, StatusEnum, MultiFaceSwapResponse, FaceSwapSingleResponse, SnowyResponse
 from src.app.utils.image_processing import validate_image_file, validate_image_type
 from src.app.utils.file_handling import save_upload_file, save_result_image, get_file_url, UPLOAD_DIR, RESULT_DIR
 from src.app.core.remove_background import get_model, BriaRMBG
@@ -394,6 +394,37 @@ async def replace_background(
             status_code=500,
             detail=f"An unexpected error occurred: {str(e)}"
         ) from e
+
+@app.post("/snowy/", response_model=SnowyResponse)
+async def snowy_api(
+    file: UploadFile = File(..., description="The image file to process"),
+    p_prompt: Optional[str] = Form(None, description="Positive prompt for image generation"),
+    n_prompt: Optional[str] = Form(None, description="Negative prompt to avoid certain elements"),
+    random_seed: Optional[bool] = Form(False, description="Whether to use random seed for generation"),
+    image_service: ImageService = Depends(get_image_service)
+):
+    """
+    Generate a snowy image using AI.
+    This endpoint processes the image and returns:
+    - The processed image with snowy background
+    - Generation parameters used
+    """
+    try:
+        return await image_service.snowy(
+            file=file,
+            p_prompt=p_prompt,
+            n_prompt=n_prompt,
+            random_seed=random_seed
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error("Snowy generation failed", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        ) from e
+
 
 @app.get("/results/{filename}")
 async def get_result_image(filename: str):

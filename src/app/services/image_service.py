@@ -12,7 +12,7 @@ import io
 
 from src.app.core.remove_background import get_model, BriaRMBG
 from src.app.core.image_processing import process_image
-from src.app.api.websockets_api import background_replacement, anime_style, background_replacement_rembg, face_swap
+from src.app.api.websockets_api import background_replacement, anime_style, background_replacement_rembg, face_swap, snowy
 from src.app.api.websockets_api import face_swap_single 
 from src.app.api.websockets_api import multi_face_swap
 from src.app.api.websockets_api import background_replacement_masking
@@ -935,6 +935,47 @@ class ImageService:
         finally:
             self._cleanup_file(upload_filename)
 
+    async def snowy(
+        self,
+        file: UploadFile,
+        p_prompt: Optional[str] = None,
+        n_prompt: Optional[str] = None,
+        random_seed: bool = False
+    ) -> Dict[str, str]:
+        """Generate a snowy image using AI."""
+        upload_filename = ""
+        try:
+            await self.validate_image(file)
+            logger.info("Image validated: %s", file.filename)
+            
+            file_extension = os.path.splitext(file.filename)[1].lower()
+            upload_filename = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{file_extension}")
+            
+            with open(upload_filename, "wb") as buffer:
+                buffer.write(await file.read())
+            logger.info("File saved to: %s", upload_filename)
+            
+            saved_paths = snowy(
+                image_path=upload_filename,
+                p_prompt=p_prompt,
+                n_prompt=n_prompt,
+                random_seed=random_seed
+            )
+            logger.info("Snowy generation completed for: %s", upload_filename)
+            
+            if not saved_paths:
+                raise HTTPException(status_code=500, detail="No result image was generated")
+            
+            return {"status": "success", "image": saved_paths['60'][0]}
+        except HTTPException as http_exc:
+            logger.error("HTTPException during snowy generation: %s", http_exc)
+            raise
+        except Exception as e:
+            logger.exception("An unexpected error occurred during snowy generation for file: %s", file.filename)
+            raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+        finally:
+            self._cleanup_file(upload_filename)
+            
     async def _validate_and_save_files(
         self,
         file: UploadFile    ) -> Tuple[str, str]:

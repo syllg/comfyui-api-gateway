@@ -14,5 +14,6 @@ ANIME_STYLE_FACE_SWAP_MERGE_WORKFLOW = os.path.join(APP_DIR, "workflow", "face_s
 FACE_SWAP_SINGLE_WORKFLOW = os.path.join(APP_DIR, "workflow", "face-swap-single.json")
 MULTI_FACE_SWAP_WORKFLOW = os.path.join(APP_DIR, "workflow", "multi-faceswap-satu-input.json")
 BACKGROUND_REPLACEMENT_MASK_WORKFLOW= os.path.join(APP_DIR, "workflow", "background_replacement_mask.json")
+SNOWY_WORKFLOW = os.path.join(APP_DIR, "workflow", "qwen_image.json")
 TARGET_SIZE = (1200, 1800)
 DEBUG = False

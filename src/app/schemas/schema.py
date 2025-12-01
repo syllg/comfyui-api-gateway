@@ -299,6 +299,49 @@ class MultiFaceSwapResponse(BaseModel):
             }
         }
 
+class SnowyRequest(BaseModel):
+    p_prompt: Optional[str] = Field(
+        default=None,
+        description="Positive prompt for image generation.",
+        example="replace background with consistent characters in a winter scene, heavy snowfall, heavy snowflakes, strong wind, cold atmosphere, icy air, high detail environment, ultra realistic, cinematic composition, depth of field, frozen landscape, white haze, winter mood"
+    )
+    n_prompt: Optional[str] = Field(
+        default=None,
+        description="Negative prompt to avoid certain elements.",
+        example="blurry, low quality, distorted"
+    )
+    random_seed: Optional[bool] = Field(
+        default=False,
+        description="Whether to use random seed for generation.",
+        example=False
+    )
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "p_prompt": "replace background with consistent characters in a winter scene, heavy snowfall, heavy snowflakes, strong wind, cold atmosphere, icy air, high detail environment, ultra realistic, cinematic composition, depth of field, frozen landscape, white haze, winter mood",
+                "n_prompt": "",
+                "random_seed": False
+            }
+        }
+
+class SnowyResponse(BaseModel):
+    status: StatusEnum = Field(
+        description="Status of the operation.",
+        example="success"
+    )
+    image: str = Field(
+        description="Base64 encoded image or URL to the generated image.",
+        example="/results/output_3c586680-eaf1-41bd-a310-7c4a0f2eeb12_29.png"
+    )
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "success",
+                "image": "/results/output_3c586680-eaf1-41bd-a310-7c4a0f2eeb12_29.png"
+            }
+        }
+
+
 class PromptEntry(BaseModel):
     prompt: str = Field(
         description="Prompt text for image generation.",
