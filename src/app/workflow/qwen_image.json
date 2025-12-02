@@ -1,8 +1,8 @@
 {
   "3": {
     "inputs": {
-      "seed": 886214280753978,
-      "steps": 4,
+      "seed": 1010844960602191,
+      "steps": 10,
       "cfg": 1,
       "sampler_name": "euler",
       "scheduler": "simple",
@@ -158,7 +158,7 @@
   },
   "78": {
     "inputs": {
-      "image": "outdoor-date-ideas-camping-getty-images-f807d7638f304f80a362cd6abd7b5e49.jpg"
+      "image": "side-view-portrait-of-a-casual-man-walking-over-white-background-DYHD9Y.jpg"
     },
     "class_type": "LoadImage",
     "_meta": {

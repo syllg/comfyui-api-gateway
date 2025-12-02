@@ -70,6 +70,23 @@ def queue_prompt(prompt):
     except Exception as e:
         raise
 
+
+def get_queue_info():
+    """
+    Get current queue information from the ComfyUI /prompt endpoint.
+
+    This mirrors what you see when visiting the ComfyUI /prompt URL in a browser,
+    for example: {"exec_info": {"queue_remaining": 0}}
+    """
+    url = build_url("prompt")
+    try:
+        # Use GET with same auth header to retrieve queue status
+        req = urllib.request.Request(url, headers=auth_header, method="GET")
+        with urllib.request.urlopen(req, timeout=10) as response:
+            return json.loads(response.read())
+    except Exception as e:
+        raise
+
 def get_image(filename, subfolder, folder_type):
     data = {"filename": filename, "subfolder": subfolder, "type": folder_type}
     url_values = urllib.parse.urlencode(data)
@@ -747,7 +764,7 @@ def snowy(image_path: str, p_prompt: str = None, n_prompt: str = None, random_se
             workflow["77"]["inputs"]["text"] = n_prompt
         
         if random_seed:
-            workflow["3"]["inputs"]["seed"] = random.randint(0, 777777777777)
+            workflow["3"]["inputs"]["seed"] = 1010844960602191
         print("[DEBUG] Executing workflow")
 
         images = get_images_websocket(workflow)

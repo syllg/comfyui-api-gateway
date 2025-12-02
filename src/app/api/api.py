@@ -36,6 +36,7 @@ from src.app.services.logging_middleware_service import LoggingMiddleware
 from src.app.settings.setting import LIST_PROMPT
 from src.app.settings.setting import ANIME_TEMPLATE
 from src.app.utils.log import configure_logging, get_logger
+from src.app.api.websockets_api import get_queue_info
 
 configure_logging(log_subdir="api")
 logging = get_logger(__name__)
@@ -425,6 +426,22 @@ async def snowy_api(
             detail=f"An unexpected error occurred: {str(e)}"
         ) from e
 
+
+@app.get("/queue-info/")
+async def queue_info():
+    """
+    Proxy endpoint to get ComfyUI queue information.
+
+    Returns the same JSON you see when accessing the ComfyUI /prompt URL directly,
+    for example: {"exec_info": {"queue_remaining": 0}}
+    """
+    try:
+        return get_queue_info()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch queue information: {str(e)}"
+        )
 
 @app.get("/results/{filename}")
 async def get_result_image(filename: str):
