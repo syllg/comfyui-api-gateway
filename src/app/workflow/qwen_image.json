@@ -1,8 +1,8 @@
 {
   "3": {
     "inputs": {
-      "seed": 756737405659021,
-      "steps": 10,
+      "seed": 886214280753978,
+      "steps": 4,
       "cfg": 1,
       "sampler_name": "euler",
       "scheduler": "simple",
@@ -116,7 +116,7 @@
   },
   "76": {
     "inputs": {
-      "prompt": "replace background with consistent characters in a winter scene, heavy snowfall, heavy snowflakes, strong wind, cold atmosphere, icy air, high detail environment, ultra realistic, cinematic composition, depth of field, frozen landscape, white haze, winter mood\n",
+      "prompt": "replace background with consistent characters in a winter scene, super heavy snowfall,super heavy snowflakes, strong wind, cold atmosphere, icy air, high detail environment, ultra realistic, cinematic composition, depth of field, frozen landscape, white haze, winter mood\n",
       "clip": [
         "38",
         0
@@ -206,7 +206,7 @@
     },
     "class_type": "ImageScaleToTotalPixels",
     "_meta": {
-      "title": "ImageScaleToTotalPixels"
+      "title": "Scale Image to Total Pixels"
     }
   }
 }
