@@ -1,6 +1,9 @@
 run: 
 	python -m src.app.api.api --reload
 
+worker:
+	python -m src.app.workers.redis_worker
+
 gradio:
 	python src\app\app.py
 	

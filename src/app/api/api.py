@@ -1,6 +1,7 @@
 import os
 import uvicorn
 import time
+import uuid
 
 import psutil
 import logging
@@ -10,6 +11,7 @@ from pathlib import Path
 from urllib.parse import unquote
 
 from typing import Optional, Dict, Any
+import re
 from dotenv import load_dotenv
 from prometheus_fastapi_instrumentator import Instrumentator
 
@@ -21,8 +23,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 from fastapi.staticfiles import StaticFiles
 from enum import Enum
+import httpx
 
-from src.app.schemas.schema import BackgroundRemovalRequest, BackgroundRemovalResponse, BackgroundReplacementRequest, BackgroundReplacementResponse, AnimeStyleRequest, AnimeStyleResponse, FaceSwapResponse, ListPromptRequest, ListPromptResponse, DeletePromptRequest, AnimeTemplateRequest, ListTemplateResponse, DeleteTemplateRequest, AnimeTemplateResponse, AnimeStyleFaceSwapResponse, StatusEnum, MultiFaceSwapResponse, FaceSwapSingleResponse, SnowyResponse
+# Redis queue is used instead of in-memory counter
+
+from src.app.schemas.schema import BackgroundRemovalRequest, BackgroundRemovalResponse, BackgroundReplacementRequest, BackgroundReplacementResponse, AnimeStyleRequest, AnimeStyleResponse, FaceSwapResponse, ListPromptRequest, ListPromptResponse, DeletePromptRequest, AnimeTemplateRequest, ListTemplateResponse, DeleteTemplateRequest, AnimeTemplateResponse, AnimeStyleFaceSwapResponse, StatusEnum, MultiFaceSwapResponse, FaceSwapSingleResponse, SnowyResponse, SnowyWebhookResponse
 from src.app.utils.image_processing import validate_image_file, validate_image_type
 from src.app.utils.file_handling import save_upload_file, save_result_image, get_file_url, UPLOAD_DIR, RESULT_DIR
 from src.app.core.remove_background import get_model, BriaRMBG
@@ -35,8 +40,11 @@ from src.app.services.metrics_service import resource_usage, inference_test
 from src.app.services.logging_middleware_service import LoggingMiddleware
 from src.app.settings.setting import LIST_PROMPT
 from src.app.settings.setting import ANIME_TEMPLATE
+from src.app.settings.setting import S3_ENABLED
 from src.app.utils.log import configure_logging, get_logger
-from src.app.api.websockets_api import get_queue_info
+from src.app.api.websockets_api import snowy as snowy_ws
+from src.app.services.redis_queue import enqueue_job, get_queue_length
+from src.app.services.s3_service import upload_file_to_s3
 
 configure_logging(log_subdir="api")
 logging = get_logger(__name__)
@@ -97,6 +105,160 @@ async def get_resource_usage():
         logging.error(f"Endpoint /resource-usage/ error: {str(e)}", exc_info=True)
         logging.error(f"Caused by: {e.__cause__}")
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+
+def process_snowy_and_callback(
+    job_id: str,
+    callback_url: str,
+    image_path: str,
+    transaction_image_id: str,
+    p_prompt: Optional[str],
+    n_prompt: Optional[str],
+    random_seed: bool,
+) -> Dict[str, Any]:
+    """
+    Process snowy generation and send webhook callback.
+    This function is called by the Redis worker.
+    
+    Returns:
+        Dict with job_id and status
+    """
+    # Normalize callback URL to avoid whitespace / invalid characters
+    callback_url = (callback_url or "").strip()
+    # Remove any non-printable ASCII characters inside the URL (e.g. stray tabs)
+    cleaned_callback_url = re.sub(r"[\x00-\x1F\x7F]", "", callback_url)
+    if cleaned_callback_url != callback_url:
+        logging.warning(
+            f"Sanitized callback_url for job_id={job_id} "
+            f"(original contained control chars): {repr(callback_url)} -> {cleaned_callback_url}"
+        )
+    callback_url = cleaned_callback_url
+    
+    try:
+        saved_paths = snowy_ws(
+            image_path=image_path,
+            p_prompt=p_prompt,
+            n_prompt=n_prompt,
+            random_seed=random_seed,
+        )
+
+        image_path_result = None
+        image_url = None
+        
+        if saved_paths and "60" in saved_paths and saved_paths["60"]:
+            image_path_result = saved_paths["60"][0]
+            
+            # Upload to S3 if enabled
+            if image_path_result and os.path.exists(image_path_result):
+                # Use filename from API result path for S3 key
+                filename = os.path.basename(image_path_result)
+                s3_key = f"results/{filename}"
+                
+                file_ext = os.path.splitext(image_path_result)[1] or ".jpg"
+                s3_url = upload_file_to_s3(
+                    local_file_path=image_path_result,
+                    s3_key=s3_key,
+                    content_type="image/jpeg" if file_ext in [".jpg", ".jpeg"] else "image/png",
+                )
+                
+                if s3_url:
+                    image_url = s3_url
+                    logging.info(f"Uploaded result image to S3: {s3_url}")
+
+        # Build client-facing image_path:
+        # - If using S3, strip domain and keep "results/<filename>"
+        # - If not using S3, derive relative path from RESULT_DIR or fall back to "results/<basename>"
+        client_image_path = None
+        if image_url:
+            # Example: https://storage-1.midory.id/results/output_xxx_60_0.jpg
+            parsed = httpx.URL(image_url)
+            url_path = parsed.path.lstrip("/")  # results/output_xxx_60_0.jpg
+        elif image_path_result:
+            # Local path -> make it relative to RESULT_DIR if possible
+            try:
+                rel_path = os.path.relpath(image_path_result, RESULT_DIR)
+            except Exception:
+                rel_path = os.path.basename(image_path_result)
+            if rel_path.startswith("results/"):
+                url_path = rel_path
+            else:
+                url_path = f"results/{os.path.basename(rel_path)}"
+        else:
+            url_path = None
+
+        if url_path:
+            # Keep full filename including node/index and extension
+            client_image_path = url_path
+
+        # Determine if S3 is being used
+        # using_s3 can be: true, false, 1, 0, "1", "0", "true", "false"
+        using_s3 = bool(image_url)  # Boolean format for JSON response (can be converted to other formats)
+        logging.debug(
+            f"S3 usage for job_id {job_id}: using_s3={using_s3}, "
+            f"S3_ENABLED={S3_ENABLED}, image_url={'present' if image_url else 'none'}"
+        )
+
+        payload: Dict[str, Any] = {
+            "job_id": job_id,
+            "status": "success" if image_path_result else "error",
+            "image_path": client_image_path or image_path_result,
+            "transaction_image_id": transaction_image_id,
+            "using_s3": using_s3,  # Boolean: true or false (JSON standard, convertible to other formats)
+        }
+    except Exception as e:
+        # using_s3 can be: true, false, 1, 0, "1", "0", "true", "false"
+        using_s3 = False  # Boolean format for JSON response (can be converted to other formats)
+        logging.debug(f"S3 usage for job_id {job_id} (error): using_s3={using_s3}")
+        payload = {
+            "job_id": job_id,
+            "status": "error",
+            "detail": str(e),
+            "transaction_image_id": transaction_image_id,
+            "using_s3": using_s3,  # Boolean: false (JSON standard, convertible to other formats)
+        }
+    finally:
+        # Clean up uploaded file
+        try:
+            if os.path.exists(image_path):
+                os.remove(image_path)
+        except Exception:
+            pass
+
+    try:
+        with httpx.Client(timeout=45.0) as client:
+            logging.info(f"Sending webhook callback for job_id: {job_id} to {callback_url} with payload: {payload}")
+            response = client.post(callback_url, json=payload)
+            
+            # Log response details before raising
+            try:
+                response_body = response.text
+                logging.debug(f"Callback response status: {response.status_code}, body: {response_body}")
+            except Exception:
+                pass
+            
+            response.raise_for_status()
+            logging.info(f"Successfully sent webhook callback for job_id: {job_id} to {callback_url}")
+    except httpx.HTTPStatusError as e:
+        # Extract response body for better error logging
+        response_body = ""
+        try:
+            response_body = e.response.text
+        except Exception:
+            pass
+        logging.error(
+            f"Failed to POST snowy result to callback_url={callback_url} for job_id={job_id}: "
+            f"HTTP {e.response.status_code} - {response_body}. "
+            f"Payload sent: {payload}",
+            exc_info=True
+        )
+    except Exception as e:
+        logging.error(
+            f"Failed to POST snowy result to callback_url={callback_url} for job_id={job_id}: {e}. "
+            f"Payload sent: {payload}",
+            exc_info=True
+        )
+    
+    return payload
 
 @app.get("/infer-test")
 @track_inference("infer_test")
@@ -402,6 +564,7 @@ async def snowy_api(
     p_prompt: Optional[str] = Form(None, description="Positive prompt for image generation"),
     n_prompt: Optional[str] = Form(None, description="Negative prompt to avoid certain elements"),
     random_seed: Optional[bool] = Form(False, description="Whether to use random seed for generation"),
+    transaction_image_id: str = Form(..., description="Transaction image ID for tracking the request"),
     image_service: ImageService = Depends(get_image_service)
 ):
     """
@@ -409,10 +572,12 @@ async def snowy_api(
     This endpoint processes the image and returns:
     - The processed image with snowy background
     - Generation parameters used
+    - Transaction image ID for tracking
     """
     try:
         return await image_service.snowy(
             file=file,
+            transaction_image_id=transaction_image_id,
             p_prompt=p_prompt,
             n_prompt=n_prompt,
             random_seed=random_seed
@@ -427,20 +592,87 @@ async def snowy_api(
         ) from e
 
 
+@app.post("/snowy/webhook-style/", response_model=SnowyWebhookResponse)
+async def snowy_webhook_style(
+    file: UploadFile = File(..., description="The image file to process"),
+    callback_url: str = Form(..., description="Difotoin server webhook URL"),
+    transaction_image_id: str = Form(..., description="Transaction image ID for tracking the request"),
+    p_prompt: Optional[str] = Form(None, description="Positive prompt for image generation"),
+    n_prompt: Optional[str] = Form(None, description="Negative prompt to avoid certain elements"),
+    random_seed: Optional[bool] = Form(False, description="Whether to use random seed for generation"),
+):
+    """
+    Snowy generation in webhook style:
+    - Camera box calls this endpoint with image + callback_url.
+    - FastAPI immediately returns job_id and adds job to Redis queue.
+    - Worker process picks up job from Redis queue and processes it.
+    - When done, worker POSTs result to callback_url.
+    
+    Returns:
+        - job_id: Unique identifier for tracking the job
+        - status: "queued" indicating the job has been added to the queue
+    """
+    file_extension = os.path.splitext(file.filename)[1].lower() or ".jpg"
+    upload_filename = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{file_extension}")
+
+    contents = await file.read()
+    with open(upload_filename, "wb") as buffer:
+        buffer.write(contents)
+
+    job_id = str(uuid.uuid4())
+
+    # Add job to Redis queue
+    job_data = {
+        "job_id": job_id,
+        "callback_url": callback_url,
+        "image_path": upload_filename,
+        "transaction_image_id": transaction_image_id,
+        "p_prompt": p_prompt,
+        "n_prompt": n_prompt,
+        "random_seed": bool(random_seed),
+    }
+    
+    try:
+        enqueue_job(job_data)
+        queue_remaining = get_queue_length()
+        logging.info(f"Job {job_id} queued to Redis. Queue remaining: {queue_remaining}")
+    except Exception as e:
+        # Clean up file if queueing fails
+        try:
+            if os.path.exists(upload_filename):
+                os.remove(upload_filename)
+        except:
+            pass
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to queue job: {str(e)}"
+        )
+
+    return {"job_id": job_id, "status": "queued"}
+
+@app.post("/test-webhook-receiver")
+async def test_webhook_receiver(payload: dict):
+    logging.info("TEST WEBHOOK RECEIVED: %s", payload)
+    return {"ok": True}
+
 @app.get("/queue-info/")
 async def queue_info():
     """
-    Proxy endpoint to get ComfyUI queue information.
-
-    Returns the same JSON you see when accessing the ComfyUI /prompt URL directly,
-    for example: {"exec_info": {"queue_remaining": 0}}
+    Get Redis queue information.
+    
+    Returns the count of pending jobs in the Redis queue,
+    not the ComfyUI queue. This tracks jobs queued via webhook-style endpoints.
+    
+    Returns: {"exec_info": {"queue_remaining": <count>}}
     """
     try:
-        return get_queue_info()
+        queue_remaining = get_queue_length()
+        return {"exec_info": {"queue_remaining": queue_remaining}}
     except Exception as e:
+        logging.error(f"Failed to get queue info: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to fetch queue information: {str(e)}"
+            detail=f"Failed to get queue information: {str(e)}"
         )
 
 @app.get("/results/{filename}")

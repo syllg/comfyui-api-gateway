@@ -938,6 +938,7 @@ class ImageService:
     async def snowy(
         self,
         file: UploadFile,
+        transaction_image_id: str,
         p_prompt: Optional[str] = None,
         n_prompt: Optional[str] = None,
         random_seed: bool = False
@@ -966,7 +967,11 @@ class ImageService:
             if not saved_paths:
                 raise HTTPException(status_code=500, detail="No result image was generated")
             
-            return {"status": "success", "image": saved_paths['60'][0]}
+            return {
+                "status": "success",
+                "image": saved_paths['60'][0],
+                "transaction_image_id": transaction_image_id
+            }
         except HTTPException as http_exc:
             logger.error("HTTPException during snowy generation: %s", http_exc)
             raise

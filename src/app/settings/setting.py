@@ -1,5 +1,9 @@
 import os
 from typing import List
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # Get the directory where this settings file is located
 SETTINGS_DIR = os.path.dirname(os.path.abspath(__file__))
 APP_DIR = os.path.dirname(SETTINGS_DIR)
@@ -17,3 +21,16 @@ BACKGROUND_REPLACEMENT_MASK_WORKFLOW= os.path.join(APP_DIR, "workflow", "backgro
 SNOWY_WORKFLOW = os.path.join(APP_DIR, "workflow", "qwen_image.json")
 TARGET_SIZE = (1200, 1800)
 DEBUG = False
+
+# Redis configuration
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+REDIS_QUEUE_KEY = "comfyui_job_queue"  # Redis list key for job queue
+
+# AWS S3 configuration
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID", "")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY", "")
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+S3_BUCKET_NAME = os.getenv("S3_BUCKET_NAME", "")
+S3_ENABLED = os.getenv("S3_ENABLED", "false").lower() == "true"
+S3_ENDPOINT_URL = os.getenv("S3_ENDPOINT_URL", "").strip()
+S3_CUSTOM_DOMAIN=os.getenv("S3_CUSTOM_DOMAIN", "").strip()

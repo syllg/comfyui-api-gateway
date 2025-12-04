@@ -333,11 +333,33 @@ class SnowyResponse(BaseModel):
         description="Base64 encoded image or URL to the generated image.",
         example="/results/output_3c586680-eaf1-41bd-a310-7c4a0f2eeb12_29.png"
     )
+    transaction_image_id: str = Field(
+        description="Transaction image ID for tracking the request.",
+        example="trans_123456789"
+    )
     class Config:
         json_schema_extra = {
             "example": {
                 "status": "success",
-                "image": "/results/output_3c586680-eaf1-41bd-a310-7c4a0f2eeb12_29.png"
+                "image": "/results/output_3c586680-eaf1-41bd-a310-7c4a0f2eeb12_29.png",
+                "transaction_image_id": "trans_123456789"
+            }
+        }
+
+class SnowyWebhookResponse(BaseModel):
+    job_id: str = Field(
+        description="Unique job identifier for tracking the processing job.",
+        example="cd0214ae-dab8-4dd1-9ce0-ec497cbbda57"
+    )
+    status: str = Field(
+        description="Status of the job queuing operation.",
+        example="queued"
+    )
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "job_id": "cd0214ae-dab8-4dd1-9ce0-ec497cbbda57",
+                "status": "queued"
             }
         }
 
