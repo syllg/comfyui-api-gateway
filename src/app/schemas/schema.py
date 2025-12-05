@@ -363,6 +363,28 @@ class SnowyWebhookResponse(BaseModel):
             }
         }
 
+class QueueStatsResponse(BaseModel):
+    pending: int = Field(
+        description="Number of pending jobs in queue.",
+        example=3
+    )
+    running: int = Field(
+        description="Number of jobs currently being processed.",
+        example=2
+    )
+    total: int = Field(
+        description="Total jobs (pending + running).",
+        example=5
+    )
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "pending": 3,
+                "running": 2,
+                "total": 5
+            }
+        }
+
 
 class PromptEntry(BaseModel):
     prompt: str = Field(

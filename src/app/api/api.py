@@ -27,7 +27,7 @@ import httpx
 
 # Redis queue is used instead of in-memory counter
 
-from src.app.schemas.schema import BackgroundRemovalRequest, BackgroundRemovalResponse, BackgroundReplacementRequest, BackgroundReplacementResponse, AnimeStyleRequest, AnimeStyleResponse, FaceSwapResponse, ListPromptRequest, ListPromptResponse, DeletePromptRequest, AnimeTemplateRequest, ListTemplateResponse, DeleteTemplateRequest, AnimeTemplateResponse, AnimeStyleFaceSwapResponse, StatusEnum, MultiFaceSwapResponse, FaceSwapSingleResponse, SnowyResponse, SnowyWebhookResponse
+from src.app.schemas.schema import BackgroundRemovalRequest, BackgroundRemovalResponse, BackgroundReplacementRequest, BackgroundReplacementResponse, AnimeStyleRequest, AnimeStyleResponse, FaceSwapResponse, ListPromptRequest, ListPromptResponse, DeletePromptRequest, AnimeTemplateRequest, ListTemplateResponse, DeleteTemplateRequest, AnimeTemplateResponse, AnimeStyleFaceSwapResponse, StatusEnum, MultiFaceSwapResponse, FaceSwapSingleResponse, SnowyResponse, SnowyWebhookResponse, QueueStatsResponse
 from src.app.utils.image_processing import validate_image_file, validate_image_type
 from src.app.utils.file_handling import save_upload_file, save_result_image, get_file_url, UPLOAD_DIR, RESULT_DIR
 from src.app.core.remove_background import get_model, BriaRMBG
@@ -43,7 +43,7 @@ from src.app.settings.setting import ANIME_TEMPLATE
 from src.app.settings.setting import S3_ENABLED
 from src.app.utils.log import configure_logging, get_logger
 from src.app.api.websockets_api import snowy as snowy_ws
-from src.app.services.redis_queue import enqueue_job, get_queue_length
+from src.app.services.redis_queue import enqueue_job, get_queue_length, get_queue_stats
 from src.app.services.s3_service import upload_file_to_s3
 
 configure_logging(log_subdir="api")
@@ -185,7 +185,7 @@ def process_snowy_and_callback(
                 url_path = f"results/{os.path.basename(rel_path)}"
         else:
             url_path = None
-
+ 
         if url_path:
             # Keep full filename including node/index and extension
             client_image_path = url_path
@@ -224,8 +224,9 @@ def process_snowy_and_callback(
         except Exception:
             pass
 
+    # Send callback - failures should not stop the queue processing
     try:
-        with httpx.Client(timeout=45.0) as client:
+        with httpx.Client(timeout=40.0) as client:
             logging.info(f"Sending webhook callback for job_id: {job_id} to {callback_url} with payload: {payload}")
             response = client.post(callback_url, json=payload)
             
@@ -251,13 +252,31 @@ def process_snowy_and_callback(
             f"Payload sent: {payload}",
             exc_info=True
         )
-    except Exception as e:
+        # Don't raise - continue to return payload so queue processing continues
+    except httpx.TimeoutException as e:
         logging.error(
-            f"Failed to POST snowy result to callback_url={callback_url} for job_id={job_id}: {e}. "
+            f"Timeout sending webhook callback to callback_url={callback_url} for job_id={job_id}: {e}. "
             f"Payload sent: {payload}",
             exc_info=True
         )
+        # Don't raise - continue to return payload so queue processing continues
+    except httpx.RequestError as e:
+        logging.error(
+            f"Request error sending webhook callback to callback_url={callback_url} for job_id={job_id}: {e}. "
+            f"Payload sent: {payload}",
+            exc_info=True
+        )
+        # Don't raise - continue to return payload so queue processing continues
+    except Exception as e:
+        logging.error(
+            f"Unexpected error sending webhook callback to callback_url={callback_url} for job_id={job_id}: {e}. "
+            f"Payload sent: {payload}",
+            exc_info=True
+        )
+        # Don't raise - continue to return payload so queue processing continues
     
+    # Always return payload regardless of callback success/failure
+    # This ensures the queue worker can continue processing other jobs
     return payload
 
 @app.get("/infer-test")
@@ -655,25 +674,25 @@ async def test_webhook_receiver(payload: dict):
     logging.info("TEST WEBHOOK RECEIVED: %s", payload)
     return {"ok": True}
 
-@app.get("/queue-info/")
-async def queue_info():
+@app.get("/queue-stats/", response_model=QueueStatsResponse)
+async def queue_stats():
     """
-    Get Redis queue information.
+    Get detailed Redis queue statistics.
     
-    Returns the count of pending jobs in the Redis queue,
-    not the ComfyUI queue. This tracks jobs queued via webhook-style endpoints.
+    Returns detailed stats including pending, running, and total jobs.
     
-    Returns: {"exec_info": {"queue_remaining": <count>}}
+    Returns: {"pending": <count>, "running": <count>, "total": <count>}
     """
     try:
-        queue_remaining = get_queue_length()
-        return {"exec_info": {"queue_remaining": queue_remaining}}
+        stats = get_queue_stats()
+        return stats
     except Exception as e:
-        logging.error(f"Failed to get queue info: {e}", exc_info=True)
+        logging.error(f"Failed to get queue stats: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get queue information: {str(e)}"
+            detail=f"Failed to get queue statistics: {str(e)}"
         )
+
 
 @app.get("/results/{filename}")
 async def get_result_image(filename: str):

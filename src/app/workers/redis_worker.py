@@ -10,7 +10,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.app.services.redis_queue import dequeue_job, get_queue_length
+from src.app.services.redis_queue import dequeue_job, get_queue_length, mark_job_done
 from src.app.api.api import process_snowy_and_callback
 from src.app.utils.log import configure_logging, get_logger
 
@@ -41,12 +41,18 @@ def main():
     
     while not shutdown_requested:
         try:
-            # Blocking dequeue (waits up to 1 second for a job)
+            # Blocking dequeue (waits up to 40 seconds for a job)
+            # dequeue_job automatically adds job to processing set
             job_data = dequeue_job(timeout=40)
             
             if job_data:
                 job_id = job_data.get("job_id", "unknown")
-                logger.info(f"Processing job: {job_id}")
+                logger.info(f"Processing job: {job_id} (job_data keys: {list(job_data.keys())})")
+                
+                # Verify job is in processing set
+                from src.app.services.redis_queue import get_running_jobs_count
+                running_count = get_running_jobs_count()
+                logger.info(f"Current running jobs count after dequeue: {running_count}")
                 
                 try:
                     result = process_snowy_and_callback(
@@ -68,6 +74,10 @@ def main():
                 except Exception as e:
                     logger.exception(f"Error processing job {job_id}: {e}")
                     # Job failed but we continue processing other jobs
+                finally:
+                    # Mark job as done (remove from running set)
+                    if job_id and job_id != "unknown":
+                        mark_job_done(job_id)
             else:
                 # No job available, continue loop
                 continue
