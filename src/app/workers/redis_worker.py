@@ -43,7 +43,7 @@ def main():
         try:
             # Blocking dequeue (waits up to 40 seconds for a job)
             # dequeue_job automatically adds job to processing set
-            job_data = dequeue_job(timeout=40)
+            job_data = dequeue_job(timeout=60)
             
             if job_data:
                 job_id = job_data.get("job_id", "unknown")

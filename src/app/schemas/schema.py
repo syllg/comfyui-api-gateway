@@ -362,6 +362,23 @@ class SnowyWebhookResponse(BaseModel):
                 "status": "queued"
             }
         }
+    
+class ChibiResponse(BaseModel):
+    status: StatusEnum = Field(
+        description="Status of the operation.",
+        example="success"
+    )
+    image: str = Field(
+        description="URL or path to the generated image.",
+        example="/results/output_3c586680-eaf1-41bd-a310-chibi.png"
+    )
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "success",
+                "image": "/results/output_3c586680-eaf1-41bd-a310-chibi.png"
+            }
+        }
 
 class QueueStatsResponse(BaseModel):
     pending: int = Field(
@@ -384,7 +401,6 @@ class QueueStatsResponse(BaseModel):
                 "total": 5
             }
         }
-
 
 class PromptEntry(BaseModel):
     prompt: str = Field(

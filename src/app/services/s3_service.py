@@ -35,8 +35,6 @@ def log_s3_configuration():
         safe_endpoint,
         S3_CUSTOM_DOMAIN or "not-set",
     )
-
-
 def get_s3_client():
     """Get or create S3 client singleton."""
     global _s3_client
@@ -95,7 +93,6 @@ def get_s3_client():
     
     return _s3_client
 
-
 def upload_file_to_s3(
     local_file_path: str,
     s3_key: Optional[str] = None,
@@ -104,7 +101,6 @@ def upload_file_to_s3(
 ) -> Optional[str]:
     """
     Upload a file to S3.
-    
     Args:
         local_file_path: Path to local file to upload
         s3_key: S3 object key (path in bucket). If None, uses filename from local path
@@ -158,7 +154,6 @@ def upload_file_to_s3(
     except Exception as e:
         logger.error(f"Unexpected error uploading to S3: {e}", exc_info=True)
         return None
-
 
 def upload_bytes_to_s3(
     file_bytes: bytes,

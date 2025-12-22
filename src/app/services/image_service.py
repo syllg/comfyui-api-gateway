@@ -12,10 +12,7 @@ import io
 
 from src.app.core.remove_background import get_model, BriaRMBG
 from src.app.core.image_processing import process_image
-from src.app.api.websockets_api import background_replacement, anime_style, background_replacement_rembg, face_swap, snowy
-from src.app.api.websockets_api import face_swap_single 
-from src.app.api.websockets_api import multi_face_swap
-from src.app.api.websockets_api import background_replacement_masking
+from src.app.api.websockets_api import background_replacement, anime_style, background_replacement_rembg, face_swap, snowy, chibi,face_swap_single, multi_face_swap, background_replacement_masking
 from src.app.utils.image_processing import validate_image_file
 from src.app.utils.file_handling import save_upload_file, save_result_image, get_file_url, UPLOAD_DIR, RESULT_DIR
 from src.app.utils.image_processing import compress_image_for_processing
@@ -980,6 +977,46 @@ class ImageService:
             raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
         finally:
             self._cleanup_file(upload_filename)
+
+    async def chibi(
+        self,
+        file: UploadFile,
+        random_seed: bool = False
+    ) -> Dict[str, str]:
+        """Generate a chibi style image using AI."""
+        upload_filename = ""
+        try:
+            await self.validate_image(file)
+            logger.info("Image validated: %s", file.filename)
+            
+            file_extension = os.path.splitext(file.filename)[1].lower()
+            upload_filename = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{file_extension}")
+            
+            with open(upload_filename, "wb") as buffer:
+                buffer.write(await file.read())
+            logger.info("File saved to: %s", upload_filename)
+            
+            saved_paths = chibi(
+                image_path=upload_filename,
+                random_seed=random_seed
+            )
+            logger.info("Chibi generation completed for: %s", upload_filename)
+            
+            if not saved_paths:
+                raise HTTPException(status_code=500, detail="No result image was generated")
+            
+            return {
+                "status": "success",
+                "image": saved_paths['136'][0]
+            }
+        except HTTPException as http_exc:
+            logger.error("HTTPException during chibi generation: %s", http_exc)
+            raise
+        except Exception as e:
+            logger.exception("An unexpected error occurred during chibi generation for file: %s", file.filename)
+            raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
+        finally:
+            self._cleanup_file(upload_filename)
             
     async def _validate_and_save_files(
         self,
@@ -1000,6 +1037,8 @@ class ImageService:
             f.write(await file.read())
 
         return file_path
+    
+
 # built-in from Python 3.9+
 
     def _handle_result_file(self, original_filename: str, add_timestamp: bool = False) -> str:

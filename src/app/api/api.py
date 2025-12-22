@@ -27,7 +27,7 @@ import httpx
 
 # Redis queue is used instead of in-memory counter
 
-from src.app.schemas.schema import BackgroundRemovalRequest, BackgroundRemovalResponse, BackgroundReplacementRequest, BackgroundReplacementResponse, AnimeStyleRequest, AnimeStyleResponse, FaceSwapResponse, ListPromptRequest, ListPromptResponse, DeletePromptRequest, AnimeTemplateRequest, ListTemplateResponse, DeleteTemplateRequest, AnimeTemplateResponse, AnimeStyleFaceSwapResponse, StatusEnum, MultiFaceSwapResponse, FaceSwapSingleResponse, SnowyResponse, SnowyWebhookResponse, QueueStatsResponse
+from src.app.schemas.schema import BackgroundRemovalRequest, BackgroundRemovalResponse, BackgroundReplacementRequest, BackgroundReplacementResponse, AnimeStyleRequest, AnimeStyleResponse, FaceSwapResponse, ListPromptRequest, ListPromptResponse, DeletePromptRequest, AnimeTemplateRequest, ListTemplateResponse, DeleteTemplateRequest, AnimeTemplateResponse, AnimeStyleFaceSwapResponse, StatusEnum, MultiFaceSwapResponse, FaceSwapSingleResponse, SnowyResponse, SnowyWebhookResponse, QueueStatsResponse, ChibiResponse
 from src.app.utils.image_processing import validate_image_file, validate_image_type
 from src.app.utils.file_handling import save_upload_file, save_result_image, get_file_url, UPLOAD_DIR, RESULT_DIR
 from src.app.core.remove_background import get_model, BriaRMBG
@@ -165,16 +165,11 @@ def process_snowy_and_callback(
                     image_url = s3_url
                     logging.info(f"Uploaded result image to S3: {s3_url}")
 
-        # Build client-facing image_path:
-        # - If using S3, strip domain and keep "results/<filename>"
-        # - If not using S3, derive relative path from RESULT_DIR or fall back to "results/<basename>"
         client_image_path = None
         if image_url:
-            # Example: https://storage-1.midory.id/results/output_xxx_60_0.jpg
             parsed = httpx.URL(image_url)
             url_path = parsed.path.lstrip("/")  # results/output_xxx_60_0.jpg
         elif image_path_result:
-            # Local path -> make it relative to RESULT_DIR if possible
             try:
                 rel_path = os.path.relpath(image_path_result, RESULT_DIR)
             except Exception:
@@ -187,7 +182,6 @@ def process_snowy_and_callback(
             url_path = None
  
         if url_path:
-            # Keep full filename including node/index and extension
             client_image_path = url_path
 
         # Determine if S3 is being used
@@ -197,7 +191,6 @@ def process_snowy_and_callback(
             f"S3 usage for job_id {job_id}: using_s3={using_s3}, "
             f"S3_ENABLED={S3_ENABLED}, image_url={'present' if image_url else 'none'}"
         )
-
         payload: Dict[str, Any] = {
             "job_id": job_id,
             "status": "success" if image_path_result else "error",
@@ -226,7 +219,7 @@ def process_snowy_and_callback(
 
     # Send callback - failures should not stop the queue processing
     try:
-        with httpx.Client(timeout=40.0) as client:
+        with httpx.Client(timeout=60.0) as client:
             logging.info(f"Sending webhook callback for job_id: {job_id} to {callback_url} with payload: {payload}")
             response = client.post(callback_url, json=payload)
             
@@ -605,6 +598,33 @@ async def snowy_api(
         raise
     except Exception as e:
         logging.error("Snowy generation failed", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        ) from e
+    
+@app.post("/chibi/", response_model=ChibiResponse)
+async def chibi_api(
+    file: UploadFile = File(..., description="The image file to process"),
+    random_seed: Optional[bool] = Form(False, description="Whether to use random seed for generation"),
+    image_service: ImageService = Depends(get_image_service)
+):
+    """
+    Generate a chibi-style image using AI.
+    This endpoint processes the image and returns:
+    - The processed image with chibi style
+    - Generation parameters used
+    - Transaction image ID for tracking
+    """
+    try:
+        return await image_service.chibi(
+            file=file,
+            random_seed=random_seed
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error("Chibi generation failed", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail=f"An unexpected error occurred: {str(e)}"
