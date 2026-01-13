@@ -12,7 +12,7 @@ import io
 
 from src.app.core.remove_background import get_model, BriaRMBG
 from src.app.core.image_processing import process_image
-from src.app.api.websockets_api import background_replacement, anime_style, background_replacement_rembg, face_swap, snowy, chibi,face_swap_single, multi_face_swap, background_replacement_masking
+from src.app.api.websockets_api import background_replacement, anime_style, background_replacement_rembg, face_swap, snowy, chibi,face_swap_single, multi_face_swap, background_replacement_masking, headswap
 from src.app.utils.image_processing import validate_image_file
 from src.app.utils.file_handling import save_upload_file, save_result_image, get_file_url, UPLOAD_DIR, RESULT_DIR
 from src.app.utils.image_processing import compress_image_for_processing
@@ -1017,11 +1017,79 @@ class ImageService:
             raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
         finally:
             self._cleanup_file(upload_filename)
-            
-    async def _validate_and_save_files(
+
+    async def headswap(
         self,
-        file: UploadFile    ) -> Tuple[str, str]:
-        """Validate and save uploaded files."""
+        face_file: UploadFile,
+        body_file: UploadFile
+    ) -> Dict[str, str]:
+        """Run face swap single workflow and return first image URL."""
+        face_file_path = ""
+        body_file_path = ""
+        try:
+            # Validate
+            await self.validate_image(face_file)
+            logger.info("Image validated: %s", face_file.filename)
+            await self.validate_image(body_file)
+            logger.info("Image validated: %s", body_file.filename)
+
+            # Save inputs
+            file_extension = os.path.splitext(face_file.filename)[1].lower()
+            face_file_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{file_extension}")
+            file_extension = os.path.splitext(body_file.filename)[1].lower()
+            body_file_path = os.path.join(UPLOAD_DIR, f"{uuid.uuid4()}{file_extension}")
+            with open(face_file_path, "wb") as f:
+                f.write(await face_file.read())
+            with open(body_file_path, "wb") as f:
+                f.write(await body_file.read())
+
+            # Verify
+            try:
+                with Image.open(face_file_path) as img:
+                    img.verify()
+                with Image.open(body_file_path) as img:
+                    img.verify()
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Invalid input image: {str(e)}")
+
+            # Run workflow
+            saved_paths = headswap(
+                face_image_path=os.path.abspath(face_file_path),
+                body_image_path=os.path.abspath(body_file_path)
+            )
+
+            if not saved_paths:
+                raise HTTPException(status_code=500, detail="No result image was generated")
+
+            # Convert paths to URLs
+            images_map = {node: [self._convert_result_path_to_url(p) for p in paths] for node, paths in saved_paths.items() if paths}
+            first_url = None
+            
+            # Try preferred nodes first, then fallback to any available
+            preferred_nodes = ['417']
+            for node_id in preferred_nodes:
+                if node_id in images_map and images_map[node_id]:
+                    first_url = images_map[node_id][0]
+                    print(f"[DEBUG] Using output from preferred node {node_id}: {first_url}")
+                    break
+            
+            # If no preferred node found, use any available
+            if not first_url and images_map:
+                first_url = next(iter(images_map.values()))[0]
+                print(f"[DEBUG] Using output from fallback node: {first_url}")
+
+            return {"status": "success", "image": first_url}
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error during headswap: {str(e)}")
+        finally:
+            self._cleanup_file(face_file_path)
+            self._cleanup_file(body_file_path)
+        
+            
+    async def _validate_and_save_files(self, file: UploadFile) -> str:
+        """Validate and save uploaded files and return saved file path."""
         file_ext_1 = os.path.splitext(file.filename)[1].lower()
         
         if file_ext_1 not in SUPPORTED_IMAGE_EXTENSIONS:

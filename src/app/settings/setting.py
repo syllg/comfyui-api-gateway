@@ -20,6 +20,7 @@ MULTI_FACE_SWAP_WORKFLOW = os.path.join(APP_DIR, "workflow", "multi-faceswap-sat
 BACKGROUND_REPLACEMENT_MASK_WORKFLOW= os.path.join(APP_DIR, "workflow", "background_replacement_mask.json")
 SNOWY_WORKFLOW = os.path.join(APP_DIR, "workflow", "qwen_image.json")
 CHIBI_WORKFLOW = os.path.join(APP_DIR, "workflow", "chibi.json")
+HEADSWAP_WORKFLOW = os.path.join(APP_DIR, "workflow", "headswap.json")
 TARGET_SIZE = (1200, 1800)
 DEBUG = False
 

@@ -27,7 +27,7 @@ import httpx
 
 # Redis queue is used instead of in-memory counter
 
-from src.app.schemas.schema import BackgroundRemovalRequest, BackgroundRemovalResponse, BackgroundReplacementRequest, BackgroundReplacementResponse, AnimeStyleRequest, AnimeStyleResponse, FaceSwapResponse, ListPromptRequest, ListPromptResponse, DeletePromptRequest, AnimeTemplateRequest, ListTemplateResponse, DeleteTemplateRequest, AnimeTemplateResponse, AnimeStyleFaceSwapResponse, StatusEnum, MultiFaceSwapResponse, FaceSwapSingleResponse, SnowyResponse, SnowyWebhookResponse, QueueStatsResponse, ChibiResponse
+from src.app.schemas.schema import BackgroundRemovalRequest, BackgroundRemovalResponse, BackgroundReplacementRequest, BackgroundReplacementResponse, AnimeStyleRequest, AnimeStyleResponse, FaceSwapResponse, ListPromptRequest, ListPromptResponse, DeletePromptRequest, AnimeTemplateRequest, ListTemplateResponse, DeleteTemplateRequest, AnimeTemplateResponse, AnimeStyleFaceSwapResponse, StatusEnum, MultiFaceSwapResponse, FaceSwapSingleResponse, SnowyResponse, SnowyWebhookResponse, QueueStatsResponse, ChibiResponse, HeadSwapResponse
 from src.app.utils.image_processing import validate_image_file, validate_image_type
 from src.app.utils.file_handling import save_upload_file, save_result_image, get_file_url, UPLOAD_DIR, RESULT_DIR
 from src.app.core.remove_background import get_model, BriaRMBG
@@ -630,6 +630,32 @@ async def chibi_api(
             detail=f"An unexpected error occurred: {str(e)}"
         ) from e
 
+@app.post("/headswap/", response_model=HeadSwapResponse)
+async def headswap_api(
+    face_file: UploadFile = File(..., description="The face image file to swap"),
+    body_file: UploadFile = File(..., description="The body image file to swap with"),
+    image_service: ImageService = Depends(get_image_service)
+):
+    """
+    Perform headswap between two images.
+    This endpoint processes the images and returns:
+    - The processed image with swapped heads
+    - Generation parameters used
+    - Transaction image ID for tracking
+    """
+    try:
+        return await image_service.headswap(
+            face_file=face_file,
+            body_file=body_file
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logging.error("Headswap failed", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred: {str(e)}"
+        ) from e
 
 @app.post("/snowy/webhook-style/", response_model=SnowyWebhookResponse)
 async def snowy_webhook_style(

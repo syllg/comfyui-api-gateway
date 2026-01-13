@@ -380,6 +380,41 @@ class ChibiResponse(BaseModel):
             }
         }
 
+class HeadSwapRequest(BaseModel):
+    """
+    Request model for face swap operation.
+    """
+    p_prompt: Optional[str] = Field(
+        default="head_swap: start with Picture 1 as the base image, keeping its lighting, environment, and background. remove the head from Picture 1 completely and replace it with the head from Picture 2. ensure the head and body have correct anatomical proportions, and blend the skin tones, shadows, and lighting naturally so the final result appears as one coherent, realistic person, consistent character.",
+        description="Positive prompt for head swap.",
+        example="swap head",
+        min_length=3,
+        max_length=512
+    )
+    class Config:
+        json_schema_extra = {
+            "example": { 
+                "p_prompt": "head_swap: start with Picture 1 as the base image, keeping its lighting, environment, and background. remove the head from Picture 1 completely and replace it with the head from Picture 2. ensure the head and body have correct anatomical proportions, and blend the skin tones, shadows, and lighting naturally so the final result appears as one coherent, realistic person, consistent character."
+            }
+        }
+
+class HeadSwapResponse(BaseModel):
+    status: StatusEnum = Field(
+        description="Status of the operation.",
+        example="success"
+    )
+    image: str = Field(
+        description="Base64 encoded image or URL to the generated image.",
+        example="/results/output_3c586680-eaf1-41bd-a310-7c4a0f2eeb12_29.png"
+    )
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "success",
+                "image": "/results/output_3c586680-eaf1-41bd-a310-7c4a0f2eeb12_29.png"
+            }
+        }
+
 class QueueStatsResponse(BaseModel):
     pending: int = Field(
         description="Number of pending jobs in queue.",
